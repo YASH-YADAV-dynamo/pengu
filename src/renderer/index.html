@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Only our own bundle runs. Inline styles are allowed for Vite's CSS in dev; fonts are bundled, not from a CDN.
+         Models (voice, assistant) are downloaded and run by the main process, so the page needs no network or WASM. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: pengu-img:"
+    />
+    <title>Pengu</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,43 @@
+# Dependencies and build output
+node_modules/
+server/node_modules/
+server/generated/
+out/
+dist/
+share/
+coverage/
+*.tsbuildinfo
+
+# Local data (never commit)
+server/.data/
+pengu.json
+*.excalidraw
+
+# Secrets: env files, keys, signing certificates
+.env*
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.cer
+*.crt
+*.mobileprovision
+*.provisionprofile
+
+# Logs and scratch
+*.log
+.scratch/
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Personal AI-assistant settings (the shared .claude/CLAUDE.md and settings.json stay tracked)
+.claude/settings.local.json
+.claude/worktrees/

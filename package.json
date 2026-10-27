@@ -1,0 +1,55 @@
+{
+  "name": "pengu-assistant",
+  "productName": "Pengu",
+  "version": "0.1.0",
+  "description": "Pengu: open-source discussions, tickets and roadmaps for teams, with a desktop penguin.",
+  "author": "Yash Yadav (https://x.com/yashastro23)",
+  "private": true,
+  "main": "out/main/index.js",
+  "scripts": {
+    "setup": "node setup.mjs",
+    "pengu": "npm --prefix server run pengu --",
+    "serve": "npm --prefix server run serve --",
+    "postinstall": "node node_modules/electron/install.js",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "release": "npm run build && electron-builder --publish always"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.3.0",
+    "electron-updater": "6.8.9"
+  },
+  "devDependencies": {
+    "@floating-ui/dom": "1.8.0",
+    "@fontsource/inter-tight": "5.3.0",
+    "@tiptap/extension-collaboration": "3.31.4",
+    "@tiptap/extension-image": "3.31.4",
+    "@tiptap/extensions": "3.31.4",
+    "@tiptap/pm": "3.31.4",
+    "@tiptap/react": "3.31.4",
+    "@tiptap/starter-kit": "3.31.4",
+    "@tiptap/y-tiptap": "3.0.10",
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "5.2.0",
+    "electron": "44.5.0",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "roughjs": "4.6.6",
+    "typescript": "5.9.3",
+    "vite": "7.3.7",
+    "wouter": "3.13.0",
+    "yjs": "13.6.33"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,111 @@
+// Pengu's team database (any Postgres, or the built-in local one). One table per kind of item the app syncs, with real columns so the data
+// can be queried and inspected in any Postgres tool. Every synced table shares the same bookkeeping:
+//   updatedAt/updatedBy  who changed it and when (last write wins on updatedAt)
+//   deletedAt            soft delete: the row stays so the delete syncs to the other person's app
+//   seq                  server order from one shared sequence (`sync_seq`); an app pulls "everything after seq N"
+// Links between items (Ticket.discussionId, Roadmap.discussionIds) are plain ids, not foreign keys: the two apps
+// can send a ticket before its discussion arrives, and the app already tolerates a missing target.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id // a short username like "ana"; also what updatedBy / assignee / tagged hold
+  name         String // display name
+  passwordHash String // scrypt, see lib/auth.ts; never a plain password
+  role         String   @default("member") // admin | member | viewer (viewers can read, not write)
+  slackId      String?  @unique // Slack member id (U...), set with `user slack`; a Slack mention acts as this person
+  createdAt    DateTime @default(now())
+}
+
+model Discussion {
+  id         String    @id
+  type       String // product | growth | tech
+  title      String
+  meetAt     DateTime?
+  tagged     String[] // user ids
+  doc        String // the editor's HTML (headings, lists, links); images are local files and not synced
+  design     Json      @default("[]") // the "design numbers" entries
+  updatedAt  DateTime
+  updatedBy  String
+  deletedAt  DateTime?
+  seq        BigInt    @default(dbgenerated("nextval('sync_seq')"))
+
+  @@index([seq])
+}
+
+model Ticket {
+  id           String    @id
+  discussionId String? // the discussion it came from, if any
+  title        String
+  assignee     String
+  deadline     String? // YYYY-MM-DD
+  status       String // open | done
+  notes        String    @default("")
+  updatedAt    DateTime
+  updatedBy    String
+  deletedAt    DateTime?
+  seq          BigInt    @default(dbgenerated("nextval('sync_seq')"))
+
+  @@index([seq])
+  @@index([assignee, status])
+}
+
+model Roadmap {
+  id            String    @id
+  title         String
+  discussionIds String[]
+  updatedAt     DateTime
+  updatedBy     String
+  deletedAt     DateTime?
+  seq           BigInt    @default(dbgenerated("nextval('sync_seq')"))
+
+  @@index([seq])
+}
+
+model Note {
+  id        String    @id
+  title     String
+  body      String
+  updatedAt DateTime
+  updatedBy String
+  deletedAt DateTime?
+  seq       BigInt    @default(dbgenerated("nextval('sync_seq')"))
+
+  @@index([seq])
+}
+
+// Failed sign-ins, so the API can slow down guessing. Old rows are deleted on each failure.
+model LoginFailure {
+  id Int      @id @default(autoincrement())
+  ip String
+  at DateTime @default(now())
+
+  @@index([ip, at])
+}
+
+// Live editing of a discussion's document (Yjs). Each row is one binary update from one person's editor; applying all of
+// a document's updates in any order gives the same text for everyone, so two people typing at once never overwrite each other.
+// The API merges old rows into one now and then (lib/doc.ts) so a long-lived document stays small.
+model DocUpdate {
+  id        BigInt   @id @default(autoincrement())
+  docId     String
+  update    Bytes
+  createdAt DateTime @default(now())
+
+  @@index([docId, id])
+}
+
+// Plugin events already handled (e.g. Slack's event_id), so a retried delivery is done once. Old rows are pruned.
+model PluginEvent {
+  id String   @id
+  at DateTime @default(now())
+
+  @@index([at])
+}

@@ -1,0 +1,109 @@
+# Builds Pengu installers for Windows, macOS and Linux on GitHub's own runners (each OS has to build on itself:
+# macOS signing and notarization only run on macOS, and Linux packages are made on Linux).
+#
+#   Release:  git tag v0.1.0 && git push --tags
+#             -> checks pass, all three OSes build, installers are attached to a GitHub Release.
+#   Try it:   repo -> Actions -> "release" -> Run workflow
+#             -> same builds, nothing is published; installers are kept as downloadable artifacts for 7 days.
+name: release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+# Lets the built-in GITHUB_TOKEN create the release in this repo, so no personal token is needed.
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Fast checks first, so a broken commit doesn't spend three runners' time.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      # The sync server: types, then its tests (real Postgres semantics through PGlite, no database needed).
+      - run: npm ci
+        working-directory: server
+      - run: npx tsc --noEmit
+        working-directory: server
+      - run: npm test
+        working-directory: server
+
+  build:
+    needs: check
+    strategy:
+      fail-fast: false # one OS failing shouldn't hide whether the other two build
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux
+          - os: macos-latest
+            name: mac
+          - os: windows-latest
+            name: windows
+    runs-on: ${{ matrix.os }}
+    env:
+      HAS_APPLE: ${{ secrets.APPLE_API_KEY_ID != '' }}
+      PUBLISH: ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # Apple API key arrives as a secret string; notarytool wants a file path.
+      - name: Apple API key
+        if: runner.os == 'macOS' && env.HAS_APPLE == 'true'
+        run: echo "${{ secrets.APPLE_API_KEY_P8 }}" > "$RUNNER_TEMP/apple_api_key.p8"
+
+      - name: Build and package
+        # Notarize only when Apple keys exist; without them the Mac build ships unsigned (free, with a Gatekeeper step).
+        # Linux and Windows build every architecture listed in electron-builder.yml (x64 and arm64).
+        shell: bash
+        run: |
+          npm run build
+          npx electron-builder --publish "$PUBLISH" $NOTARIZE
+        env:
+          NOTARIZE: ${{ runner.os == 'macOS' && secrets.APPLE_API_KEY_ID != '' && '-c.mac.notarize=true' || '' }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS signing (Developer ID Application cert, base64 .p12) and notarization
+          CSC_LINK: ${{ runner.os == 'macOS' && secrets.MAC_CERT_P12_BASE64 || '' }}
+          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.MAC_CERT_PASSWORD || '' }}
+          APPLE_API_KEY: ${{ runner.temp }}/apple_api_key.p8
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # Windows signing via Azure Trusted Signing (uncomment azureSignOptions in electron-builder.yml)
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+      # Manual runs publish nothing, so keep the installers where they can be downloaded and tried.
+      - name: Keep installers (manual runs)
+        if: env.PUBLISH == 'never'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pengu-${{ matrix.name }}
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
+            dist/latest*.yml

@@ -1,0 +1,92 @@
+# Packaging for Windows (NSIS), macOS (dmg + zip) and Linux (AppImage + deb).
+appId: app.pengu.desktop # must equal APP_ID in src/main/index.ts (Windows toast identity)
+productName: Pengu
+copyright: Copyright © 2026 Yash Yadav # shown in macOS About and Windows file properties
+directories:
+  buildResources: build # icon.png and entitlements live here
+  output: dist
+# Only the built bundle and tray icons ship. React and friends are devDependencies, already bundled by Vite.
+# The assistant's models are NOT bundled: they download on first start. onnxruntime-web is the browser build of the
+# runtime (the page bundles its own copy). Each OS section repeats this list and drops the other two OSes' native
+# binaries (a platform's `files` replaces this one, it doesn't add to it).
+files:
+  - out/**
+  - resources/**
+  - package.json
+  - '!node_modules/onnxruntime-web/**'
+# The built-in assistant runs in the main process on ONNX Runtime's native addon, which can't load from inside the
+# asar archive, so its binaries are unpacked. Each platform's build drops the other platforms' binaries.
+asarUnpack:
+  - node_modules/onnxruntime-node/bin/**
+protocols:
+  - name: Pengu
+    schemes: [pengu]
+
+mac:
+  files:
+    - out/**
+    - resources/**
+    - package.json
+    - '!node_modules/onnxruntime-web/**'
+    - '!node_modules/onnxruntime-node/bin/napi-v6/{linux,win32}/**'
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [universal] # one download for Apple Silicon and Intel
+    - target: zip # auto-update on Mac needs the zip, not the dmg
+      arch: [universal]
+  hardenedRuntime: true # required for notarization
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: false # CI turns this on with -c.mac.notarize=true once Apple API keys are set
+  extendInfo:
+    NSMicrophoneUsageDescription: Pengu listens only while you hold the mic button, and turns speech into text on this Mac.
+
+win:
+  files:
+    - out/**
+    - resources/**
+    - package.json
+    - '!node_modules/onnxruntime-web/**'
+    - '!node_modules/onnxruntime-node/bin/napi-v6/{linux,darwin}/**'
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+  # Signing without an HSM token: fill in after setting up Azure Trusted Signing (check eligibility first).
+  # azureSignOptions:
+  #   publisherName: <your publisher name> # must match the signing certificate's subject exactly
+  #   endpoint: https://<region>.codesigning.azure.net
+  #   codeSigningAccountName: <account>
+  #   certificateProfileName: <profile>
+
+linux:
+  files:
+    - out/**
+    - resources/**
+    - package.json
+    - '!node_modules/onnxruntime-web/**'
+    - '!node_modules/onnxruntime-node/bin/napi-v6/{darwin,win32}/**'
+  target:
+    - target: AppImage # one file, runs anywhere: chmod +x Pengu-*.AppImage && ./Pengu-*.AppImage (auto-updates)
+      arch: [x64, arm64]
+    - target: deb # Debian, Ubuntu, Mint: sudo apt install ./pengu_*.deb
+      arch: [x64, arm64]
+  category: Office
+  executableName: pengu
+  synopsis: Discussions, tickets and roadmaps for teams, with a desktop penguin
+  maintainer: Pengu <CHANGE-ME@example.com> # required by the deb format: put a real contact address here
+  desktop:
+    entry:
+      StartupWMClass: Pengu
+      MimeType: x-scheme-handler/pengu # so pengu:// links open the app
+
+nsis:
+  oneClick: true
+  perMachine: false # installs per user, so there is no admin (UAC) prompt
+  createDesktopShortcut: true
+
+# Releases go to GitHub Releases of this (public) repo; electron-updater reads latest.yml / latest-mac.yml / latest-linux.yml from there.
+publish:
+  provider: github
+  owner: YOUR_GITHUB_USER # set these to your fork before building releases
+  repo: pengu

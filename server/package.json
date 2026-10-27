@@ -1,0 +1,32 @@
+{
+  "name": "pengu-sync-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pengu sync server and admin CLI. Runs on your own Postgres or a built-in local database; also deploys to Vercel.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "postinstall": "prisma generate",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "pengu": "node --experimental-strip-types cli/pengu.ts",
+    "serve": "node --experimental-strip-types cli/pengu.ts serve"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.3.14",
+    "@neondatabase/serverless": "1.2.0",
+    "@prisma/adapter-neon": "7.10.0",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "pg": "8.23.1",
+    "pglite-prisma-adapter": "0.7.2",
+    "yjs": "13.6.33"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "prisma": "7.10.0",
+    "typescript": "5.9.3"
+  }
+}
