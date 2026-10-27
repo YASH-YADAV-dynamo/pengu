@@ -1,4 +1,4 @@
-# Pengu 🐧
+# Pengu (Beta)🐧
 
 Open-source desktop app (Windows, macOS, Linux) for discussions, tickets, notes and roadmaps, with a little penguin on your desktop that
 shows your meets and tickets and pings you with system notifications. Works fully offline; add the sync server to share with a team.
